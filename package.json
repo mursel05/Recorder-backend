@@ -1,0 +1,16 @@
+{
+  "name": "recorder",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "puppeteer": "^24.38.0"
+  }
+}
