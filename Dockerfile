@@ -1,6 +1,5 @@
 FROM node:20-slim
 
-# Install dependencies + add Google Chrome repo
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -11,7 +10,6 @@ RUN apt-get update && apt-get install -y \
     > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update && apt-get install -y \
     google-chrome-stable \
-    ffmpeg \
     xvfb \
     pulseaudio \
     --no-install-recommends \
@@ -26,7 +24,6 @@ COPY src/ ./src/
 
 RUN mkdir -p /app/recordings
 
-# Startup script that launches Xvfb + PulseAudio before the bot
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 

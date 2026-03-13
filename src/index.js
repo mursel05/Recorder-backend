@@ -18,7 +18,6 @@ async function main() {
     maxDurationMs: parseInt(process.env.MAX_DURATION_MS || "10800000"),
   });
 
-  // Handle graceful shutdown
   process.on("SIGINT", async () => {
     console.log("\n[Main] Caught SIGINT, stopping bot...");
     const result = await bot.stop();
@@ -28,7 +27,7 @@ async function main() {
 
   try {
     await bot.join();
-    bot.startRecording();
+    await bot.startRecording();
     await bot.waitForMeetingEnd();
     const result = await bot.stop();
 
@@ -38,6 +37,7 @@ async function main() {
     console.log(`  Duration: ${Math.round(result.durationMs / 1000)}s`);
     console.log(`  Started:  ${result.startedAt.toISOString()}`);
     console.log(`  Ended:    ${result.endedAt.toISOString()}`);
+    await new Promise((res) => setTimeout(res, 200000));
   } catch (err) {
     console.error("[Main] Bot failed:", err);
     await bot.stop().catch(() => {});

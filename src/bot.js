@@ -1,5 +1,4 @@
 const puppeteer = require("puppeteer");
-const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -7,7 +6,6 @@ class MeetBot {
   constructor(config) {
     this.browser = null;
     this.page = null;
-    this.ffmpegProcess = null;
     this.startTime = null;
 
     this.config = {
@@ -36,13 +34,28 @@ class MeetBot {
         "--start-maximized",
         "--disable-blink-features=AutomationControlled",
         "--incognito",
+        "--autoplay-policy=no-user-gesture-required",
+        "--enable-usermedia-screen-capturing",
+        "--allow-http-screen-capture",
       ],
     });
 
     this.page = await this.browser.newPage();
-    await this.page.evaluateOnNewDocument((name) => {
-      localStorage.setItem("botName", name);
-    }, this.config.botName);
+    // Forward browser console to terminal
+    this.page.on("console", (msg) => {
+      console.log(`[Browser] ${msg.text()}`);
+    });
+    // in evaluateOnNewDocument - just store peer connections
+    await this.page.evaluateOnNewDocument(() => {
+      window._peerConnections = [];
+      const orig = window.RTCPeerConnection;
+      window.RTCPeerConnection = function (...args) {
+        const pc = new orig(...args);
+        window._peerConnections.push(pc);
+        return pc;
+      };
+      window.RTCPeerConnection.prototype = orig.prototype;
+    });
 
     console.log(`[MeetBot] Navigating to Meet URL...`);
     await this.page.goto(this.config.meetUrl, { waitUntil: "networkidle2" });
@@ -102,49 +115,124 @@ class MeetBot {
     }
   }
 
-  startRecording() {
-    const timestamp = Date.now();
-    const videoPath = path.join(
-      this.config.outputDir,
-      `recording_${timestamp}.mp4`,
-    );
-    const display = process.env.DISPLAY || ":99";
+  async startRecording() {
+    // Simulate user gesture to unlock media
+    await this.page.mouse.click(640, 360);
+    await this.page.keyboard.press("Space");
+    await new Promise((res) => setTimeout(res, 1000));
 
-    console.log(`[MeetBot] Starting FFmpeg recording on display ${display}...`);
+    // Click the Meet video area specifically
+    try {
+      const videoEl = await this.page.$("video");
+      if (videoEl) {
+        await videoEl.click();
+        console.log("[MeetBot] Clicked video element to unlock media");
+      }
+    } catch {}
+
+    await new Promise((res) => setTimeout(res, 2000));
+
+    // Now check if tracks unmuted
+    const trackStates = await this.page.evaluate(() => {
+      const states = [];
+      (window._peerConnections || []).forEach((pc) => {
+        pc.getReceivers().forEach((r) => {
+          if (r.track)
+            states.push({ kind: r.track.kind, muted: r.track.muted });
+        });
+      });
+      return states;
+    });
+    console.log("[MeetBot] Track states after click:", trackStates);
+
+    const timestamp = Date.now();
+    this.videoPath = path.join(
+      this.config.outputDir,
+      `recording_${timestamp}.webm`,
+    );
     this.startTime = new Date();
 
-    this.ffmpegProcess = spawn("ffmpeg", [
-      "-y",
-      "-f",
-      "x11grab",
-      "-r",
-      "30",
-      "-s",
-      "1280x720",
-      "-i",
-      `${display}.0`,
-      "-f",
-      "pulse",
-      "-i",
-      "default",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "ultrafast",
-      "-c:a",
-      "aac",
-      "-b:a",
-      "128k",
-      videoPath,
-    ]);
+    await this.page.exposeFunction("saveChunk", (chunk) => {
+      console.log(`[MeetBot] Saving chunk: ${chunk.length} bytes`); // ← add this
+      const buffer = Buffer.from(chunk);
+      fs.appendFileSync(this.videoPath, buffer);
+    });
+    await this.page.evaluate(() => {
+      return new Promise((resolve, reject) => {
+        let attempts = 0;
 
-    this.ffmpegProcess.stdout?.on("data", (data) => process.stdout.write(data));
-    this.ffmpegProcess.stderr?.on("data", (data) => process.stderr.write(data));
-    this.ffmpegProcess.on("close", (code) => {
-      console.log(`[MeetBot] FFmpeg exited with code ${code}`);
+        const tryStart = () => {
+          attempts++;
+
+          // Get all live tracks from all peer connections
+          // Get all live tracks from all peer connections
+          const tracks = [];
+          (window._peerConnections || []).forEach((pc) => {
+            pc.getReceivers().forEach((receiver) => {
+              if (receiver.track && receiver.track.readyState === "live") {
+                receiver.track.enabled = true; // ← force enable
+                tracks.push(receiver.track);
+                console.log(
+                  `[Recorder] Track: ${receiver.track.kind}, muted: ${receiver.track.muted}, enabled: ${receiver.track.enabled}`,
+                );
+              }
+            });
+          });
+
+          console.log(
+            `[Recorder] Attempt ${attempts}: ${tracks.length} live tracks, ${window._peerConnections?.length || 0} peer connections`,
+          );
+
+          if (attempts > 60) {
+            reject(new Error("No tracks after 60s"));
+            return;
+          }
+
+          if (tracks.length === 0) {
+            setTimeout(tryStart, 1000);
+            return;
+          }
+
+          const unmutedTracks = tracks.filter((t) => !t.muted);
+          console.log(`[Recorder] Unmuted tracks: ${unmutedTracks.length}`);
+
+          if (unmutedTracks.length === 0) {
+            setTimeout(tryStart, 1000);
+            return;
+          }
+
+          try {
+            const stream = new MediaStream(unmutedTracks);
+            const recorder = new MediaRecorder(stream, {
+              mimeType: "video/webm;codecs=vp8,opus",
+              videoBitsPerSecond: 2500000,
+              audioBitsPerSecond: 128000,
+            });
+
+            recorder.ondataavailable = async (e) => {
+              console.log(`[Recorder] chunk: ${e.data.size} bytes`);
+              if (e.data.size > 0) {
+                const buffer = await e.data.arrayBuffer();
+                window.saveChunk(Array.from(new Uint8Array(buffer)));
+              }
+            };
+
+            recorder.onerror = (e) => console.error("[Recorder] Error:", e);
+            recorder.start(1000);
+            window._meetRecorder = recorder;
+            console.log(`[Recorder] ✅ Started with ${tracks.length} tracks`);
+            resolve();
+          } catch (err) {
+            console.error("[Recorder] Failed:", err.message);
+            reject(err);
+          }
+        };
+
+        tryStart();
+      });
     });
 
-    console.log(`[MeetBot] Recording to: ${videoPath}`);
+    console.log(`[MeetBot] Recording to: ${this.videoPath}`);
   }
 
   async waitForMeetingEnd() {
@@ -198,10 +286,11 @@ class MeetBot {
     const durationMs =
       endTime.getTime() - (this.startTime?.getTime() ?? endTime.getTime());
 
-    if (this.ffmpegProcess) {
-      this.ffmpegProcess.stdin?.write("q");
+    if (this.page) {
+      await this.page.evaluate(() => {
+        if (window._meetRecorder) window._meetRecorder.stop();
+      });
       await new Promise((res) => setTimeout(res, 2000));
-      this.ffmpegProcess.kill("SIGTERM");
     }
 
     if (this.browser) {
@@ -213,7 +302,7 @@ class MeetBot {
     );
     const videoPath = path.join(
       this.config.outputDir,
-      `recording_${timestamp}.mp4`,
+      `recording_${timestamp}.webm`,
     );
     const audioPath = path.join(
       this.config.outputDir,
