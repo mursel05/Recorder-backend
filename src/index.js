@@ -27,7 +27,7 @@ async function main() {
 
   try {
     await bot.join();
-    await bot.startRecording();
+    bot.startRecording();
     await bot.waitForMeetingEnd();
     const result = await bot.stop();
 
@@ -37,7 +37,6 @@ async function main() {
     console.log(`  Duration: ${Math.round(result.durationMs / 1000)}s`);
     console.log(`  Started:  ${result.startedAt.toISOString()}`);
     console.log(`  Ended:    ${result.endedAt.toISOString()}`);
-    await new Promise((res) => setTimeout(res, 200000));
   } catch (err) {
     console.error("[Main] Bot failed:", err);
     await bot.stop().catch(() => {});

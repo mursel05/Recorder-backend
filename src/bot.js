@@ -1,6 +1,7 @@
 const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
+const { spawn } = require("child_process");
 
 class MeetBot {
   constructor(config) {
@@ -31,46 +32,33 @@ class MeetBot {
         "--disable-dev-shm-usage",
         "--disable-gpu",
         "--disable-notifications",
-        "--start-maximized",
         "--disable-blink-features=AutomationControlled",
         "--incognito",
-        "--autoplay-policy=no-user-gesture-required",
-        "--enable-usermedia-screen-capturing",
-        "--allow-http-screen-capture",
+        "--start-maximized",
+        "--window-size=1280,720",
+        "--window-position=0,0",
+        "--kiosk",
       ],
+      defaultViewport: null,
     });
 
     this.page = await this.browser.newPage();
-    // Forward browser console to terminal
-    this.page.on("console", (msg) => {
-      console.log(`[Browser] ${msg.text()}`);
-    });
-    // in evaluateOnNewDocument - just store peer connections
-    await this.page.evaluateOnNewDocument(() => {
-      window._peerConnections = [];
-      const orig = window.RTCPeerConnection;
-      window.RTCPeerConnection = function (...args) {
-        const pc = new orig(...args);
-        window._peerConnections.push(pc);
-        return pc;
-      };
-      window.RTCPeerConnection.prototype = orig.prototype;
-    });
 
     console.log(`[MeetBot] Navigating to Meet URL...`);
     await this.page.goto(this.config.meetUrl, { waitUntil: "networkidle2" });
 
     await this.handlePreJoinScreen();
     await this.waitUntilJoin();
-
+    await this.makeFullScreen();
+    await this.makeSpotlight();
+    await this.removeBotCamera();
+    await this.removeFooter();
     console.log(`[MeetBot] Successfully joined the meeting.`);
   }
 
   async handlePreJoinScreen() {
-    const page = this.page;
-
     try {
-      const btn = await page.waitForSelector('button[jsname="IbE0S"]', {
+      const btn = await this.page.waitForSelector('button[jsname="IbE0S"]', {
         timeout: 5000,
       });
       if (btn) {
@@ -81,9 +69,12 @@ class MeetBot {
     } catch {}
 
     try {
-      const nameInput = await page.waitForSelector('input[jsname="YPqjbf"]', {
-        timeout: 5000,
-      });
+      const nameInput = await this.page.waitForSelector(
+        'input[jsname="YPqjbf"]',
+        {
+          timeout: 5000,
+        },
+      );
       if (nameInput) {
         await nameInput.click({ clickCount: 3 });
         await nameInput.type(this.config.botName);
@@ -92,7 +83,7 @@ class MeetBot {
     } catch {}
 
     try {
-      const btn = await page.waitForSelector('div[jsname="Qx7uuf"]', {
+      const btn = await this.page.waitForSelector('div[jsname="Qx7uuf"]', {
         timeout: 5000,
       });
       if (btn) {
@@ -104,10 +95,8 @@ class MeetBot {
   }
 
   async waitUntilJoin() {
-    const page = this.page;
-
     try {
-      await page.waitForSelector('button[jsname="hNGZQc"]', {
+      await this.page.waitForSelector('button[jsname="hNGZQc"]', {
         timeout: 600000,
       });
     } catch {
@@ -115,124 +104,160 @@ class MeetBot {
     }
   }
 
-  async startRecording() {
-    // Simulate user gesture to unlock media
-    await this.page.mouse.click(640, 360);
-    await this.page.keyboard.press("Space");
-    await new Promise((res) => setTimeout(res, 1000));
-
-    // Click the Meet video area specifically
+  async makeFullScreen() {
     try {
-      const videoEl = await this.page.$("video");
-      if (videoEl) {
-        await videoEl.click();
-        console.log("[MeetBot] Clicked video element to unlock media");
-      }
-    } catch {}
-
-    await new Promise((res) => setTimeout(res, 2000));
-
-    // Now check if tracks unmuted
-    const trackStates = await this.page.evaluate(() => {
-      const states = [];
-      (window._peerConnections || []).forEach((pc) => {
-        pc.getReceivers().forEach((r) => {
-          if (r.track)
-            states.push({ kind: r.track.kind, muted: r.track.muted });
-        });
+      const moreBtn = await this.page.waitForSelector(
+        'button[jsname="NakZHc"]',
+        {
+          timeout: 5000,
+        },
+      );
+      await moreBtn.click();
+      await new Promise((res) => setTimeout(res, 500));
+      await this.page.evaluate(() => {
+        const items = document.querySelectorAll("li[role='menuitem']");
+        for (const item of items) {
+          if (item.textContent.includes("Full screen")) {
+            item.click();
+            break;
+          }
+        }
       });
-      return states;
-    });
-    console.log("[MeetBot] Track states after click:", trackStates);
+      console.log("[MeetBot] Clicked fullscreen");
+      await new Promise((res) => setTimeout(res, 1000));
+    } catch {
+      throw new Error("Failed to enter fullscreen mode.");
+    }
+  }
 
+  async makeSpotlight() {
+    try {
+      const moreBtn = await this.page.waitForSelector(
+        'button[jsname="NakZHc"]',
+        {
+          timeout: 5000,
+        },
+      );
+      await moreBtn.click();
+      await new Promise((res) => setTimeout(res, 500));
+      await this.page.evaluate(() => {
+        const items = document.querySelectorAll("li[role='menuitem']");
+        for (const item of items) {
+          if (item.textContent.includes("Adjust view")) {
+            item.click();
+            break;
+          }
+        }
+      });
+      await new Promise((res) => setTimeout(res, 1000));
+      await this.page.evaluate(() => {
+        const labels = document.querySelectorAll("label.DxvcU");
+        for (const label of labels) {
+          if (label.textContent.includes("Spotlight")) {
+            label.click();
+            break;
+          }
+        }
+      });
+      await this.page.evaluate(() => {
+        const buttons = document.querySelectorAll(
+          "button.VfPpkd-Bz112c-LgbsSe",
+        );
+        for (const button of buttons) {
+          if (button.getAttribute("aria-label") === "Close") {
+            button.click();
+            break;
+          }
+        }
+      });
+      console.log("[MeetBot] Clicked spotlight mode");
+      await new Promise((res) => setTimeout(res, 1000));
+    } catch {
+      throw new Error("Failed to enter spotlight mode.");
+    }
+  }
+
+  async removeBotCamera() {
+    try {
+      const screen = await this.page.waitForSelector('div[jsname="Qiayqc"]', {
+        timeout: 5000,
+      });
+      await this.page.evaluate((btn) => btn.remove(), screen);
+      console.log("[MeetBot] Removed bot camera from recording.");
+      await new Promise((res) => setTimeout(res, 1000));
+    } catch {
+      throw new Error("Failed to remove bot camera.");
+    }
+  }
+
+  async removeFooter() {
+    try {
+      await this.page.waitForSelector("#browser-extension-end-buttons", {
+        timeout: 5000,
+      });
+      await this.page.evaluate(() => {
+        const anchor = document.querySelector("#browser-extension-end-buttons");
+        if (!anchor) return;
+        // walk up until we find the fixed-position footer root
+        let el = anchor;
+        while (el && el !== document.body) {
+          const style = window.getComputedStyle(el);
+          if (style.position === "fixed" || el.dataset.side === "3") {
+            el.remove();
+            return;
+          }
+          el = el.parentElement;
+        }
+      });
+      await new Promise((res) => setTimeout(res, 1000));
+      console.log("[MeetBot] Removed footer from recording.");
+    } catch (error) {
+      console.log(error);
+      throw new Error("Failed to remove footer.");
+    }
+  }
+
+  startRecording() {
     const timestamp = Date.now();
-    this.videoPath = path.join(
+    const videoPath = path.join(
       this.config.outputDir,
-      `recording_${timestamp}.webm`,
+      `recording_${timestamp}.mp4`,
     );
     this.startTime = new Date();
+    const display = process.env.DISPLAY || ":99";
 
-    await this.page.exposeFunction("saveChunk", (chunk) => {
-      console.log(`[MeetBot] Saving chunk: ${chunk.length} bytes`); // ← add this
-      const buffer = Buffer.from(chunk);
-      fs.appendFileSync(this.videoPath, buffer);
-    });
-    await this.page.evaluate(() => {
-      return new Promise((resolve, reject) => {
-        let attempts = 0;
+    this.ffmpegProcess = spawn("ffmpeg", [
+      "-y",
+      "-f",
+      "x11grab",
+      "-r",
+      "30",
+      "-s",
+      "1280x720",
+      "-i",
+      `${display}.0`,
+      "-f",
+      "pulse",
+      "-i",
+      "default",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "128k",
+      videoPath,
+    ]);
 
-        const tryStart = () => {
-          attempts++;
-
-          // Get all live tracks from all peer connections
-          // Get all live tracks from all peer connections
-          const tracks = [];
-          (window._peerConnections || []).forEach((pc) => {
-            pc.getReceivers().forEach((receiver) => {
-              if (receiver.track && receiver.track.readyState === "live") {
-                receiver.track.enabled = true; // ← force enable
-                tracks.push(receiver.track);
-                console.log(
-                  `[Recorder] Track: ${receiver.track.kind}, muted: ${receiver.track.muted}, enabled: ${receiver.track.enabled}`,
-                );
-              }
-            });
-          });
-
-          console.log(
-            `[Recorder] Attempt ${attempts}: ${tracks.length} live tracks, ${window._peerConnections?.length || 0} peer connections`,
-          );
-
-          if (attempts > 60) {
-            reject(new Error("No tracks after 60s"));
-            return;
-          }
-
-          if (tracks.length === 0) {
-            setTimeout(tryStart, 1000);
-            return;
-          }
-
-          const unmutedTracks = tracks.filter((t) => !t.muted);
-          console.log(`[Recorder] Unmuted tracks: ${unmutedTracks.length}`);
-
-          if (unmutedTracks.length === 0) {
-            setTimeout(tryStart, 1000);
-            return;
-          }
-
-          try {
-            const stream = new MediaStream(unmutedTracks);
-            const recorder = new MediaRecorder(stream, {
-              mimeType: "video/webm;codecs=vp8,opus",
-              videoBitsPerSecond: 2500000,
-              audioBitsPerSecond: 128000,
-            });
-
-            recorder.ondataavailable = async (e) => {
-              console.log(`[Recorder] chunk: ${e.data.size} bytes`);
-              if (e.data.size > 0) {
-                const buffer = await e.data.arrayBuffer();
-                window.saveChunk(Array.from(new Uint8Array(buffer)));
-              }
-            };
-
-            recorder.onerror = (e) => console.error("[Recorder] Error:", e);
-            recorder.start(1000);
-            window._meetRecorder = recorder;
-            console.log(`[Recorder] ✅ Started with ${tracks.length} tracks`);
-            resolve();
-          } catch (err) {
-            console.error("[Recorder] Failed:", err.message);
-            reject(err);
-          }
-        };
-
-        tryStart();
-      });
+    this.ffmpegProcess.stdout?.on("data", (data) => process.stdout.write(data));
+    this.ffmpegProcess.stderr?.on("data", (data) => process.stderr.write(data));
+    this.ffmpegProcess.on("close", (code) => {
+      console.log(`[MeetBot] FFmpeg exited with code ${code}`);
     });
 
-    console.log(`[MeetBot] Recording to: ${this.videoPath}`);
+    console.log(`[MeetBot] Recording to: ${videoPath}`);
   }
 
   async waitForMeetingEnd() {
@@ -286,11 +311,10 @@ class MeetBot {
     const durationMs =
       endTime.getTime() - (this.startTime?.getTime() ?? endTime.getTime());
 
-    if (this.page) {
-      await this.page.evaluate(() => {
-        if (window._meetRecorder) window._meetRecorder.stop();
-      });
+    if (this.ffmpegProcess) {
+      this.ffmpegProcess.stdin?.write("q");
       await new Promise((res) => setTimeout(res, 2000));
+      this.ffmpegProcess.kill("SIGTERM");
     }
 
     if (this.browser) {
@@ -302,7 +326,7 @@ class MeetBot {
     );
     const videoPath = path.join(
       this.config.outputDir,
-      `recording_${timestamp}.webm`,
+      `recording_${timestamp}.mp4`,
     );
     const audioPath = path.join(
       this.config.outputDir,

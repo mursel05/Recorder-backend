@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update && apt-get install -y \
     google-chrome-stable \
+    ffmpeg \
     xvfb \
     pulseaudio \
     --no-install-recommends \
