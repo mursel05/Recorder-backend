@@ -1,0 +1,376 @@
+<html lang='{{lang}}'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>{{t 'email.orderStatusUpdate.subtitle'}}</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        background-color: #f0f0f0;
+        color: #333333;
+        line-height: 1.6;
+      }
+      .email-wrapper {
+        width: 100%;
+        padding: 40px 20px;
+        background-color: #f0f0f0;
+      }
+      .email-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .email-header {
+        background: linear-gradient(135deg, #000000 0%, #333333 100%);
+        padding: 50px 30px;
+        text-align: center;
+        color: #ffffff;
+      }
+      .email-header h1 {
+        font-size: 32px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+      .email-header p {
+        font-size: 18px;
+        opacity: 0.9;
+      }
+      .email-body {
+        padding: 40px 30px;
+      }
+      .greeting {
+        font-size: 20px;
+        color: #000000;
+        margin-bottom: 20px;
+        font-weight: 600;
+      }
+      .content-text {
+        font-size: 15px;
+        color: #333333;
+        margin-bottom: 20px;
+        line-height: 1.7;
+      }
+      .status-box {
+        background: linear-gradient(135deg, #f9f9f9 0%, #efefef 100%);
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 30px;
+        margin: 30px 0;
+        text-align: center;
+      }
+      .status-label {
+        font-size: 13px;
+        color: #666666;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+      }
+      .status-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #000000;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .status-date {
+        font-size: 13px;
+        color: #999999;
+        margin-top: 10px;
+      }
+      .order-summary-box {
+        background-color: #f0f0f0;
+        border-radius: 8px;
+        padding: 25px;
+        margin: 25px 0;
+      }
+      .order-summary-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #000000;
+        margin-bottom: 15px;
+      }
+      .order-info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .order-info-row:last-child {
+        border-bottom: none;
+      }
+      .order-info-label {
+        font-size: 14px;
+        color: #666666;
+      }
+      .order-info-value {
+        font-size: 14px;
+        color: #000000;
+        font-weight: 600;
+        margin-left: 15px;
+      }
+      .items-container {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 25px 0;
+      }
+      .items-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #000000;
+        margin-bottom: 15px;
+      }
+      .item {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .item:last-child {
+        border-bottom: none;
+      }
+      .item-details {
+        flex: 1;
+        margin-left: 15px !important;
+      }
+      .item-details-container {
+        display: flex;
+      }
+      .item-image {
+        width: 60px !important;
+        height: 60px !important;
+        object-fit: cover;
+        border-radius: 6px;
+      }
+      .item-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #000000;
+        margin-bottom: 4px;
+      }
+      .item-quantity {
+        font-size: 13px;
+        color: #666666;
+      }
+      .item-price {
+        font-size: 14px;
+        font-weight: 600;
+        color: #000000;
+        white-space: nowrap;
+        margin-left: auto;
+      }
+      .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 15px;
+        margin-top: 15px;
+        border-top: 2px solid #000000;
+      }
+      .total-label {
+        font-size: 16px;
+        font-weight: 600;
+        color: #000000;
+      }
+      .total-amount {
+        font-size: 20px;
+        font-weight: 700;
+        color: #000000;
+        margin-left: auto;
+      }
+      .info-box {
+        background-color: #f0f8ff;
+        border-left: 4px solid #007bff;
+        padding: 16px 20px;
+        margin: 20px 0;
+        border-radius: 4px;
+      }
+      .info-box p {
+        font-size: 14px;
+        color: #333333;
+        margin: 0;
+      }
+      .button-container {
+        text-align: center;
+        margin: 30px 0;
+      }
+      .button {
+        display: inline-block;
+        background-color: #000000;
+        color: #ffffff;
+        padding: 14px 40px;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .email-footer {
+        background-color: #f0f0f0;
+        padding: 30px;
+        text-align: center;
+        border-top: 1px solid #ededed;
+      }
+      .footer-text {
+        font-size: 13px;
+        color: #666666;
+        margin-bottom: 8px;
+      }
+      .footer-links {
+        margin-top: 15px;
+      }
+      .footer-links a {
+        color: #c4ae72;
+        text-decoration: none;
+        margin: 0 10px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='email-wrapper'>
+      <div class='email-container'>
+        <div class='email-header'>
+          <h1>{{t 'email.title'}}</h1>
+          <p>{{t 'email.orderStatusUpdate.subtitle'}}</p>
+        </div>
+
+        <div class='email-body'>
+          <p class='greeting'>{{t 'email.orderStatusUpdate.statusText'}}</p>
+
+          <p class='content-text'>
+            {{t 'email.orderStatusUpdate.contentText'}}
+          </p>
+
+          <div class='status-box'>
+            <div class='status-label'>{{t
+                'email.orderStatusUpdate.currentStatus'
+              }}</div>
+            <div class='status-value'>{{orderDetails.status}}</div>
+            <div class='status-date'>{{t 'email.orderStatusUpdate.updatedOn'}}
+              {{updatedAt}}</div>
+          </div>
+
+          <div class='order-summary-box'>
+            <div class='order-summary-title'>{{t
+                'email.orderStatusUpdate.orderSummary'
+              }}</div>
+            <div class='order-info-row'>
+              <div class='order-info-label'>{{t
+                  'email.orderStatusUpdate.orderNumber'
+                }}:</div>
+              <div class='order-info-value'>{{orderDetails.orderNumber}}</div>
+            </div>
+            <div class='order-info-row'>
+              <div class='order-info-label'>{{t
+                  'email.orderStatusUpdate.orderDate'
+                }}:</div>
+              <div class='order-info-value'>{{orderDate}}</div>
+            </div>
+          </div>
+
+          <div class='items-container'>
+            <div class='items-title'>{{t
+                'email.orderStatusUpdate.orderItems'
+              }}</div>
+            {{#each orderDetails.products}}
+              <div class='item'>
+                <div class='item-details-container'>
+                  <img
+                    class='item-image'
+                    src='{{this.imageUrl}}'
+                    alt='{{translate this.imageAlt}}'
+                  />
+                  <div class='item-details'>
+                    <div class='item-name'>{{translate this.product.name}}</div>
+                    <div class='item-quantity'>{{t
+                        'email.orderConfirmation.quantity'
+                      }}
+                      {{this.quantity}}</div>
+                  </div>
+                </div>
+                <div class='item-price'>
+                  ${{#if this.discountedPrice}}
+                    {{this.discountedPrice}}
+                  {{else}}
+                    {{this.price}}
+                  {{/if}}
+                </div>
+              </div>
+            {{/each}}
+            <div class='total-row'>
+              <div class='total-label'>{{t
+                  'email.orderStatusUpdate.total'
+                }}</div>
+              <div class='total-amount'>${{orderDetails.totalAmount}}</div>
+            </div>
+          </div>
+
+          {{#if shipped}}
+            <div class='info-box'>
+              <p><strong>{{t
+                    'email.orderStatusUpdate.shipped.title'
+                  }}</strong></p>
+              <p>{{t 'email.orderStatusUpdate.shipped.description'}}</p>
+            </div>
+          {{else if delivered}}
+            <div class='info-box'>
+              <p><strong>{{t
+                    'email.orderStatusUpdate.delivered.title'
+                  }}</strong></p>
+              <p>{{t 'email.orderStatusUpdate.delivered.description'}}</p>
+            </div>
+          {{else if cancelled}}
+            <div class='info-box'>
+              <p><strong>{{t
+                    'email.orderStatusUpdate.cancelled.title'
+                  }}</strong></p>
+              <p>{{t 'email.orderStatusUpdate.cancelled.description'}}</p>
+            </div>
+          {{else if processing}}
+            <div class='info-box'>
+              <p><strong>{{t
+                    'email.orderStatusUpdate.processing.title'
+                  }}</strong></p>
+              <p>{{t 'email.orderStatusUpdate.processing.description'}}</p>
+            </div>
+          {{/if}}
+
+          <div class='button-container'>
+            <a
+              href='{{clientUrl}}/orders'
+              class='button'
+              style='background-color: #000000; color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;'
+            >
+              {{t 'email.orderStatusUpdate.viewOrderDetails'}}
+            </a>
+          </div>
+
+          <p class='content-text' style='margin-top: 30px;'>
+            {{t 'email.orderStatusUpdate.questionsAboutOrder'}}
+          </p>
+        </div>
+      </div>
+      <div class='email-footer'>
+        <p class='footer-text'>&copy;
+          {{currentYear}}
+          {{t 'email.footer'}}</p>
+        <div class='footer-links'>
+          <a href='#'>{{t 'email.privacyPolicy'}}</a>
+          <a href='#'>{{t 'email.contactSupport'}}</a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
