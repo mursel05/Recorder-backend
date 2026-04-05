@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:20-slim
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -36,7 +36,6 @@ RUN chmod +x /start.sh
 
 ENV DISPLAY=:99
 ENV CHROME_PATH=/usr/bin/google-chrome
-ENV OUTPUT_DIR=/app/recordings
 
 EXPOSE 80
 CMD ["/start.sh"]

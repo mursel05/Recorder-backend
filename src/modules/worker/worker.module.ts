@@ -6,6 +6,6 @@ import { WorkerService } from './worker.service';
 @Module({
   imports: [ConfigModule],
   providers: [BotService, WorkerService],
-  exports: [WorkerService], // MeetModule imports this to enqueue + query
+  exports: [WorkerService],
 })
 export class WorkerModule {}
