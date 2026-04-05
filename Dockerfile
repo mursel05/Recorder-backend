@@ -1,21 +1,42 @@
 FROM node:22-alpine
-RUN apk add --no-cache git nginx curl
+
+RUN apt-get update && apt-get install -y \
+    wget \
+    git \
+    nginx \
+    gnupg \
+    ca-certificates \
+    --no-install-recommends \
+    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+    > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update && apt-get install -y \
+    google-chrome-stable \
+    ffmpeg \
+    xvfb \
+    pulseaudio \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /frontend
-COPY package*.json ./
+RUN git clone https://github.com/mursel05/Recorder.git .
 RUN npm install
-COPY . .
 RUN npm run build
 
 WORKDIR /backend
-RUN git clone https://github.com/mursel05/Recorder-backend.git .
+COPY package*.json ./
 RUN npm install
+COPY . .
 RUN npm run build
 
 COPY nginx.conf /etc/nginx/nginx.conf
 
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
+
+ENV DISPLAY=:99
+ENV CHROME_PATH=/usr/bin/google-chrome
+ENV OUTPUT_DIR=/app/recordings
 
 EXPOSE 80
 CMD ["/start.sh"]

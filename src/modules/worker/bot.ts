@@ -85,7 +85,11 @@ export class MeetBot {
         console.log(`[MeetBot] Clicked "Continue without microphone" button.`);
         await this.sleep(2000);
       }
-    } catch {}
+    } catch {
+      throw new Error(
+        'Failed to bypass pre-join screen. Please check the Meet URL and bot configuration.',
+      );
+    }
 
     try {
       const nameInput = await this.page!.waitForSelector(
@@ -97,7 +101,11 @@ export class MeetBot {
         await nameInput.type(this.config.botName);
         await this.sleep(2000);
       }
-    } catch {}
+    } catch {
+      throw new Error(
+        'Failed to set bot name on pre-join screen. Please check the Meet URL and bot configuration.',
+      );
+    }
 
     try {
       const btn = await this.page!.waitForSelector('div[jsname="Qx7uuf"]', {
@@ -108,7 +116,11 @@ export class MeetBot {
         console.log(`[MeetBot] Clicked "Join now" button.`);
         await this.sleep(2000);
       }
-    } catch {}
+    } catch {
+      throw new Error(
+        'Failed to click "Join now" button on pre-join screen. Please check the Meet URL and bot configuration.',
+      );
+    }
   }
 
   private async waitUntilJoin(): Promise<void> {
@@ -223,7 +235,7 @@ export class MeetBot {
       });
       await this.sleep(1000);
       console.log('[MeetBot] Removed footer.');
-    } catch (error) {
+    } catch {
       throw new Error('Failed to remove footer.');
     }
   }

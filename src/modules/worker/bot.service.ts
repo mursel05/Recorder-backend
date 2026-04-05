@@ -11,7 +11,7 @@ import { MeetBot } from './bot';
 @Injectable()
 export class BotService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BotService.name);
-  private worker: Worker;
+  private worker!: Worker;
 
   constructor(private readonly config: ConfigService) {}
 
