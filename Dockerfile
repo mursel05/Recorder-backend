@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /frontend
 RUN git clone https://github.com/mursel05/Recorder.git .
 RUN npm install
+COPY .env .env
 RUN npm run build
 
 WORKDIR /backend
