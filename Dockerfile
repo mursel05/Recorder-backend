@@ -29,6 +29,7 @@ WORKDIR /backend
 COPY package*.json ./
 RUN npm install
 COPY . .
+RUN rm -f .env
 RUN npm run build
 
 COPY nginx.conf /etc/nginx/nginx.conf
