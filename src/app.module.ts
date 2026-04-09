@@ -38,6 +38,7 @@ import { WorkerModule } from './modules/worker/worker.module';
         database: config.get('database.database'),
         autoLoadEntities: true,
         synchronize: true,
+        ssl: config.get('database.ssl'),
       }),
     }),
 
