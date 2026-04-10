@@ -87,7 +87,7 @@ export class MeetBot {
         console.log(`[MeetBot] Clicked "Continue without microphone" button.`);
         await this.sleep(2000);
       }
-    } catch {
+    } catch (error) {
       console.log(error);
       throw new Error(
         'Failed to bypass pre-join screen. Please check the Meet URL and bot configuration.',
