@@ -43,6 +43,7 @@ export class MeetBot {
     console.log(`[MeetBot] Launching browser...`);
 
     this.browser = await puppeteer.launch({
+      executablePath: process.env.CHROME_PATH,
       headless: false,
       args: [
         '--no-sandbox',
