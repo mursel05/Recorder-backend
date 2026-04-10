@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import * as puppeteer from 'puppeteer';
+import { error } from 'console';
 
 export interface MeetBotConfig {
   meetUrl: string;
@@ -87,6 +88,7 @@ export class MeetBot {
         await this.sleep(2000);
       }
     } catch {
+      console.log(error);
       throw new Error(
         'Failed to bypass pre-join screen. Please check the Meet URL and bot configuration.',
       );
